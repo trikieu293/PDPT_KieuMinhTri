@@ -17,7 +17,6 @@ def readMetaData(filename):
 def readDataframe(filename):
     df = pd.read_csv(filename, skiprows=3, sep='\t')
     temp = df[df['node'].str.constains("t") == True]
-    df = df.drop(df[df['node'].str.contains("t")].index)
     for index, row in temp.iterrows():
         if row['node'].str.containts("t"):
             df.add(row.replace("t", "ts"))
@@ -79,9 +78,10 @@ def getNodeList(df):
     rDestinations = df.loc[df['node'].str.contains('d'),'node']
     vOrigins = df.loc[df['node'].str.contains('o'),'node']
     vDestinations = df.loc[df['node'].str.contains('e'),'node']
+    transferNodes = df.loc[df['node'].str.contains('t') and not df.loc['node'].str.contains("s") and not df.loc['node'].str.contains("f") , 'node']
     transferStart = df.loc[df['node'].str.contains('ts'),'node']
     transferFinish = df.loc[df['node'].str.contains('tf'), 'node']
-    return {"a":allNodes, "ro":rOrigins, "rd":rDestinations, "vo":vOrigins, "vd":vDestinations, "ts":transferStart, "tf":transferFinish}
+    return {"a":allNodes, "ro":rOrigins, "rd":rDestinations, "vo":vOrigins, "vd":vDestinations, "t":transferNodes, "ts":transferStart, "tf":transferFinish}
 
 # Model
 def cortesModel(filename):
@@ -155,9 +155,23 @@ def cortesModel(filename):
     model.update()
 
     ## Constaints                  
-    
+    for k in pd.RangeIndex(nVehicles):
+        model.addConstr(sum(x[k,i,j] for i in nodeList['vo'].values if i.str.contains(k) if (i,j) in arcs) == 1, name='constr1')
+        model.addConstr(sum(x[k,i,j] for j in nodeList['vd'].values if j.str.contains(k) if (i,j) in arcs) == 1, name= 'constr2')
+        model.addConstr(sum(sum(x[k,i,j] for (i,j) in arcs) for i in nodeList['vo'].values) <= 1, name= 'constr3')
+        
+        for i in np.concatenate((nodeList['ro'].values, nodeList['rd'].values)):
+            model.addConstr(sum(x[k,i,j] for (i,j) in arcs) == sum(x[k,j,i] for (j,i) in arcs), name= 'constr4')
+        for t in nodeList['t'].values:
+            for i in nodeList['ts'].values:
+                for j in nodeList['tf'].values:
+                    if i.str.contains(k) and j.str.contains(k):
+                        model.addConstr(sum(x[k,temp,i] for (temp,i) in arcs) == x[k,i,j], name= 'constr5')
+                        model.addConstr(sum(x[k,j,temp] for (j,temp) in arcs) == x[k,i,j], name= 'constr6')
 
-
+    for r in pd.RangeIndex(nRequests):
+        model.addConstr(sum(sum(x[k,j,i] for i in nodeList['rd'].values if i.str.contains(k) if (j,i) in arcs) for k in pd.RangeIndex(nVehicles)) == 1, name= 'constr7')
+        model.addConstr(sum(sum(x[k,i,j] for i in nodeList['ro'].values if i.str.contains(k) if (i,j) in arcs) for k in pd.RangeIndex(nVehicles)) == 1, name= 'constr8')
 
 
     model.update()
