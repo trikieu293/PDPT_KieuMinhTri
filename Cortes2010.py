@@ -133,10 +133,10 @@ def cortesModel(filename):
     vCapability = int(metaData['capacity'])
 
     c = pd.DataFrame.from_dict(distancesMatrix(df)).fillna(0)
-    # k = pd.RangeIndex(nVehicles)
-    # r = pd.RangeIndex(nRequests)
-    # u = pd.Series(index=k, data=np.full(nVehicles, vCapability))
-    # q = pd.Series(index = np.concatenate((nodeList['ro'].values, nodeList['rd'].values)), data=df.loc[0:nRequests*2-1,'load'].values, dtype=int)
+    k = pd.RangeIndex(nVehicles)
+    r = pd.RangeIndex(nRequests)
+    u = pd.Series(index=k, data=np.full(nVehicles, vCapability))
+    q = pd.Series(index = np.concatenate((nodeList['ro'].values, nodeList['rd'].values)), data=df.loc[0:nRequests*2-1,'load'].values, dtype=int)
 
     cost = {(i, j): c.loc[i, j].values(0) for i in c.index for j in c.column}
 
@@ -241,7 +241,20 @@ def cortesModel(filename):
                 if j.replace(str(k),'') != "o" and j.replace(str(k),'') != "e":
                     model.addConstr(sum(z[k,r,j] for r in pd.RangeIndex(nRequests)) <= sum(x[k,i,j] for i in nodeList["a"].values if (i,j) in arcs), name="constr21") 
         
+        for (i,j) in arcs:
+            if i in nodeList["ts"].values and j in nodeList["tf"].values and i.replace("tf",'') == j.replace("ts",''):
+                for k1 in pd.RangeIndex(nVehicles):
+                    for k2 in pd.RangeIndex(nVehicles):
+                        for r in pd.RangeIndex(nRequests):
+                            model.addConstr(ats[k1,i] - atf[k2,j] <= 2 - (z[k1,r,i] + z[k2,r,j]), name="constr22")
         
+        for k in pd.RangeIndex(nVehicles):
+            for i in nodeList["a"].values:
+                model.addConstr(sum(q[r]*z[k,r,i] for r in pd.RangeIndex(nRequests)) <= u[k], name="constr23")
+                
+        for i in nodeList["a"].values:
+            model.addConstr(a[k, i] >= int(df.loc[df['node'] == i, 'a'].values[0]), name='constr24')
+            model.addConstr(a[k, i] <= int(df.loc[df['node'] == i, 'b'].values[0]), name='constr24')
         
                         
     model.update()
