@@ -209,9 +209,41 @@ def cortesModel(filename):
         if i in nodeList["tf"].values and j in nodeList["ts"].values:
             if i.replace("tf",'') != j.replace("ts",''):
                 bigM = max(0, df.loc[df['node'] == i, 'b'].values[0]) + c[i][j] - int(df.loc[df['node'] == j, 'a'].values[0])
-                model.addConstr(a[i] + c[i][j] - a[j] <= bigM * (1 - x[k, i, j]), name="constr13")
+                model.addConstr(a[i] + c[i][j] - a[j] <= bigM * (1 - x[k, i, j]), name="constr15")
             
-                    
+        for k in pd.RangeIndex(nVehicles):
+            for r in pd.RangeIndex(nRequests):
+                model.addConstr(z[k,r,"o"+k] == z[k,r,"e"+k], name ="constr16")
+        
+        for (i,j) in arcs:
+            if i in nodeList["ts"].values and j in nodeList["tf"].values and i.replace("tf",'') == j.replace("ts",''):
+                for k in pd.RangeIndex(nVehicles):
+                    for r in pd.RangeIndex(nRequests):
+                        if i.replace(str(r),'') != "p" and i.replace(str(r),'') != "d":
+                            model.addConstr(z[k,i,r] - z[k,r,j] <= 1 - x[k,i,j], name="constr17")
+                        
+        for k in pd.RangeIndex(nVehicles):
+            for r in pd.RangeIndex(nRequests):
+                for (j,i) in arcs:
+                    if j in nodeList["ro"].values:
+                        model.addConstr(z[k,r,i] - 1 <= 1 - x[k,j,i], name="constr18")
+                    if j in nodeList["rd"].values:
+                        model.addConstr(z[k,r,i] <= 1 - x[k,j,i], name="constr19")
+                        
+        for r in pd.RangeIndex(nRequests):
+            for (i,j) in arcs:
+                if i in nodeList["ts"].values and j in nodeList["tf"].values and i.replace("ts",'') == j.replace("tf",''):
+                    model.addConstr(sum(z[k,r,i] for k in pd.RangeIndex(nVehicles)) == sum(z[k,r,j] for k in pd.RangeIndex(nVehicles)), name="constr20")
+         
+        
+        for k in pd.RangeIndex(nVehicles):
+            for j in nodeList["a"].values:
+                if j.replace(str(k),'') != "o" and j.replace(str(k),'') != "e":
+                    model.addConstr(sum(z[k,r,j] for r in pd.RangeIndex(nRequests)) <= sum(x[k,i,j] for i in nodeList["a"].values if (i,j) in arcs), name="constr21") 
+        
+        
+        
+                        
     model.update()
     model.optimize()
     # model.computeIIS()
