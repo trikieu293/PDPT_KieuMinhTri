@@ -143,14 +143,17 @@ def cortesModel(filename):
     print(df)
 
     xIndex = [(k, i, j) for k in pd.RangeIndex(nVehicles) for (i,j) in arcs]
-    zIndex = [(k, i, j) for k in pd.RangeIndex(nVehicles) for i in pd.RangeIndex(nRequests) for j in nodeList['a'].values]
-    aIndex = [(k, i) for k in pd.RangeIndex(nVehicles) for i in nodeList['a'].values]
-    bIndex = [(k, i) for k in pd.RangeIndex(nVehicles) for i in nodeList['a'].values]
+    zIndex = [(k, r, i) for k in pd.RangeIndex(nVehicles) for r in pd.RangeIndex(nRequests) for i in nodeList['a'].values]
+    aIndex = [i for i in nodeList['a'].values]
+    atsIndex = [(k, i) for k in pd.RangeIndex(nVehicles) for i in nodeList['ts'].values]
+    atfIndex = [(k, i) for k in pd.RangeIndex(nVehicles) for i in nodeList['tf'].values]
 
     x = model.addVars(xIndex, vtype=GRB.BINARY, name='x')
+    z = model.addVars(xIndex, vtype=GRB.BINARY, name='x')
     a = model.addVars(aIndex, vtype=GRB.INTEGER, name='a')
-    b = model.addVars(bIndex, vtype=GRB.INTEGER, name='b')
-
+    ats = model.addVars(atsIndex, vtype=GRB.INTEGER, name='ats')
+    atf = model.addVars(atfIndex, vtype=GRB.INTEGER, name='atf')
+    
     model.setObjective(sum((c[i][j] * x[k, i, j]) for (i,j) in arcs for k in pd.RangeIndex(nVehicles)), GRB.MINIMIZE)
     model.update()
 
@@ -172,35 +175,70 @@ def cortesModel(filename):
     for r in pd.RangeIndex(nRequests):
         model.addConstr(sum(sum(x[k,j,i] for i in nodeList['rd'].values if i.str.contains(k) if (j,i) in arcs) for k in pd.RangeIndex(nVehicles)) == 1, name= 'constr7')
         model.addConstr(sum(sum(x[k,i,j] for i in nodeList['ro'].values if i.str.contains(k) if (i,j) in arcs) for k in pd.RangeIndex(nVehicles)) == 1, name= 'constr8')
-
-
+    
+    for k in pd.RangeIndex(nVehicles):
+        for r in pd.RangeIndex(nRequests):
+            bigM = max(0, df.loc[df['node'] == "o"+k, 'b'].values[0]) - int(df.loc[df['node'] == "p"+r, 'a'].values[0])
+            model.addConstr(c["o"+k]["p"+r] - a["p"+r] <= bigM * (1 - x[k, "o"+k, "p"+r]), name="constr9")
+        for t in nodeList["ts"].values:
+            bigM = max(0, df.loc[df['node'] == "o"+k, 'b'].values[0]) - int(df.loc[df['node'] == t, 'a'].values[0])
+            model.addConstr(c["o"+k][t] - a[t] <= bigM * (1 - x[k, "o"+k, t]), name="constr10")
+    
+    for (i,j) in arcs:
+        if i in np.concatenate((nodeList['ro'].values, nodeList['rd'].values)):  
+            if j in np.concatenate((nodeList['ro'].values, nodeList['rd'].values)):
+                for k in pd.RangeIndex(nVehicles):
+                    bigM = max(0, df.loc[df['node'] == i, 'b'].values[0]) + c[i][j] - int(df.loc[df['node'] == j, 'a'].values[0])
+                    model.addConstr(a[i] + c[i][j] - a[j] <= bigM * (1 - x[k, i, j]), name="constr11")
+                    
+            if j in nodeList["ts"].values:
+                for k in pd.RangeIndex(nVehicles):
+                    bigM = max(0, df.loc[df['node'] == i, 'b'].values[0]) + c[i][j] - int(df.loc[df['node'] == j, 'a'].values[0])
+                    model.addConstr(a[i] + c[i][j] - a[j] <= bigM * (1 - x[k, i, j]), name="constr12")
+                    
+            if j in nodeList["tf"].values:
+                for k in pd.RangeIndex(nVehicles):
+                    bigM = max(0, df.loc[df['node'] == j, 'b'].values[0]) + c[j][i] - int(df.loc[df['node'] == i, 'a'].values[0])
+                    model.addConstr(a[j] + c[j][i] - a[i] <= bigM * (1 - x[k, j, i]), name="constr14")
+        
+        if i in nodeList["ts"].values and j in nodeList["tf"].values:
+            if i.replace("ts",'') == j.replace("tf",''):
+                bigM = max(0, df.loc[df['node'] == i, 'b'].values[0]) + c[i][j] - int(df.loc[df['node'] == j, 'a'].values[0])
+                model.addConstr(a[i] + c[i][j] - a[j] <= bigM * (1 - x[k, i, j]), name="constr13")
+                
+        if i in nodeList["tf"].values and j in nodeList["ts"].values:
+            if i.replace("tf",'') != j.replace("ts",''):
+                bigM = max(0, df.loc[df['node'] == i, 'b'].values[0]) + c[i][j] - int(df.loc[df['node'] == j, 'a'].values[0])
+                model.addConstr(a[i] + c[i][j] - a[j] <= bigM * (1 - x[k, i, j]), name="constr13")
+            
+                    
     model.update()
     model.optimize()
     # model.computeIIS()
     # model.write("model.ilp")
     
-    def plotLocation(df):
-        fig, axes = plt.subplots(figsize=(10, 10))
+    # def plotLocation(df):
+    #     fig, axes = plt.subplots(figsize=(10, 10))
         
-        plt.scatter(df.loc[df['node'].str.contains('p'),'x'].values, df.loc[df['node'].str.contains('p'),'y'].values, s=50, facecolor='red', marker='o')
-        plt.scatter(df.loc[df['node'].str.contains('d'),'x'].values, df.loc[df['node'].str.contains('d'),'y'].values, s=50, facecolor='green', marker='o')
-        plt.scatter(df.loc[df['node'].str.contains('o'),'x'].values, df.loc[df['node'].str.contains('o'),'y'].values, s=50, facecolor='red', marker='s')
-        plt.scatter(df.loc[df['node'].str.contains('e'),'x'].values, df.loc[df['node'].str.contains('e'),'y'].values, s=50, facecolor='green', marker='s')
-        plt.scatter(df.loc[df['node'].str.contains('t'),'x'].values, df.loc[df['node'].str.contains('t'),'y'].values, s=50, facecolor='blue', marker='D')
+    #     plt.scatter(df.loc[df['node'].str.contains('p'),'x'].values, df.loc[df['node'].str.contains('p'),'y'].values, s=50, facecolor='red', marker='o')
+    #     plt.scatter(df.loc[df['node'].str.contains('d'),'x'].values, df.loc[df['node'].str.contains('d'),'y'].values, s=50, facecolor='green', marker='o')
+    #     plt.scatter(df.loc[df['node'].str.contains('o'),'x'].values, df.loc[df['node'].str.contains('o'),'y'].values, s=50, facecolor='red', marker='s')
+    #     plt.scatter(df.loc[df['node'].str.contains('e'),'x'].values, df.loc[df['node'].str.contains('e'),'y'].values, s=50, facecolor='green', marker='s')
+    #     plt.scatter(df.loc[df['node'].str.contains('t'),'x'].values, df.loc[df['node'].str.contains('t'),'y'].values, s=50, facecolor='blue', marker='D')
         
-        for xi, yi, text in zip(df['x'].values, df['y'].values, df['node'].values):
-            plt.annotate(text, xy=(xi, yi), xycoords='data', xytext=(5, 5), textcoords='offset points')
-        xResult = pd.DataFrame(x.keys(), columns=["k","i","j"])
-        xResult["value"]=model.getAttr("X", x).values()
+    #     for xi, yi, text in zip(df['x'].values, df['y'].values, df['node'].values):
+    #         plt.annotate(text, xy=(xi, yi), xycoords='data', xytext=(5, 5), textcoords='offset points')
+    #     xResult = pd.DataFrame(x.keys(), columns=["k","i","j"])
+    #     xResult["value"]=model.getAttr("X", x).values()
         
-        for index, row in xResult.iterrows():
-            if row["value"] == 1:
-                x1 = df.loc[df['node'] == row["i"], 'x'].values
-                y1 = df.loc[df['node'] == row["i"], 'y'].values
-                x2 = df.loc[df['node'] == row["j"], 'x'].values
-                y2 = df.loc[df['node'] == row["j"], 'y'].values
-                plt.plot([x1, x2], [y1, y2], 'gray', linestyle="--")
-        plt.show()
+    #     for index, row in xResult.iterrows():
+    #         if row["value"] == 1:
+    #             x1 = df.loc[df['node'] == row["i"], 'x'].values
+    #             y1 = df.loc[df['node'] == row["i"], 'y'].values
+    #             x2 = df.loc[df['node'] == row["j"], 'x'].values
+    #             y2 = df.loc[df['node'] == row["j"], 'y'].values
+    #             plt.plot([x1, x2], [y1, y2], 'gray', linestyle="--")
+    #     plt.show()
     
     #plotLocation(df)
     infos = [filename, model.getObjective().getValue(), model.Runtime]
