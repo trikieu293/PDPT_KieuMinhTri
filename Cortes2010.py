@@ -96,8 +96,6 @@ def cortesModel(filename):
     df = readDataframe(filename)
     nodeList = getNodeList(df)
 
-
-    ##TODO: create E (set of considerable arcs) to check validity of the constraints
     arcs = []
     for i in nodeList['vo'].values:
         for j in nodeList['ro'].values:
@@ -114,7 +112,7 @@ def cortesModel(filename):
 
     for i in nodeList['rd'].values:
         for j in np.concatenate((nodeList['ro'].values, nodeList['rd'].values, nodeList['vd'].values, nodeList['ts'].values)):
-            if i != j or (j in nodeList['ro'].values and i != j.replace("p","d")):
+            if not (i == j or (j in nodeList['ro'].values and i == j.replace("p","d"))):
                 arcs.append((i,j))
 
     for i in nodeList['ts'].values:
@@ -123,7 +121,7 @@ def cortesModel(filename):
                 arcs.append((i,j))
 
     for i in nodeList['tf'].values:
-        for j in np.concatenate((nodeList['ro'].values, nodeList['rd'].values, nodeList['vo'].values, nodeList['ts'].values)):
+        for j in np.concatenate((nodeList['ro'].values, nodeList['rd'].values, nodeList['vd'].values, nodeList['ts'].values)):
             if  not (i == j.replace('s', 'f') and j in nodeList['ts'].values):
                 arcs.append((i,j))
 
@@ -166,11 +164,11 @@ def cortesModel(filename):
     model.setObjective(sum((c[i][j] * x[k, i, j]) for (i,j) in arcs for k in pd.RangeIndex(nVehicles)), GRB.MINIMIZE)
     model.update()
 
-    ## Constaints                  
+        ## Constaints                  
     for k in pd.RangeIndex(nVehicles):
         model.addConstr(sum(x[k,i,j] for i in nodeList['vo'].values for j in nodeList['a'].values if "o" + str(k) == i if (i,j) in arcs) == 1, name='constr1')
         model.addConstr(sum(x[k,i,j] for i in nodeList['a'].values for j in nodeList['vd'].values if "e" + str(k) == j if (i,j) in arcs) == 1, name= 'constr2')
-        model.addConstr(sum(sum(x[k,i,j] for j in nodeList['a'].values if (i,j) in arcs) for i in nodeList['vo'].values ) == 1, name= 'constr3')
+        model.addConstr(sum(sum(x[k,i,j] for j in nodeList['a'].values if (i,j) in arcs) for i in nodeList['vo'].values ) <= 1, name= 'constr3')
         
         for i in np.concatenate((nodeList['ro'].values, nodeList['rd'].values)):
             model.addConstr(sum(x[k,i,j] for j in nodeList['a'].values if (i,j) in arcs) == sum(x[k,j,i] for j in nodeList['a'].values if (j,i) in arcs), name= 'constr4')
@@ -178,94 +176,96 @@ def cortesModel(filename):
         for (i,j) in arcs:
             if i in nodeList["ts"].values and j in nodeList["tf"].values and i.replace("ts",'') == j.replace("tf",''):
                 model.addConstr(sum(x[k,temp,i] for temp in nodeList['a'].values if (temp,i) in arcs) == x[k,i,j], name= 'constr5')
-            if i in nodeList["ts"].values and j in nodeList["tf"].values and i.replace("ts",'') == j.replace("tf",''):
+            
                 model.addConstr(sum(x[k,j,temp] for temp in nodeList['a'].values if (j,temp) in arcs) == x[k,i,j], name= 'constr6')
-
+        
     for i in nodeList['rd'].values:
         model.addConstr(sum(sum(x[k,j,i] for j in nodeList['a'].values if (j,i) in arcs) for k in pd.RangeIndex(nVehicles)) == 1, name= 'constr7')
         
     for i in nodeList['ro'].values:    
         model.addConstr(sum(sum(x[k,i,j] for j in nodeList['a'].values if (i,j) in arcs) for k in pd.RangeIndex(nVehicles)) == 1, name= 'constr8')
-    
-    for k in pd.RangeIndex(nVehicles):
-        for r in pd.RangeIndex(nRequests):
-            bigM = max(0, df.loc[df['node'] == "o"+ str(k), 'b'].values[0]) - int(df.loc[df['node'] == "p"+str(r), 'a'].values[0])
-            model.addConstr(c["o"+str(k)]["p"+str(r)] - a["p"+str(r)] <= bigM * (1 - x[k, "o"+str(k), "p"+str(r)]), name="constr9")
-        for t in nodeList["ts"].values:
-            bigM = max(0, df.loc[df['node'] == "o"+str(k), 'b'].values[0]) - int(df.loc[df['node'] == t, 'a'].values[0])
-            model.addConstr(c["o"+str(k)][t] - a[t] <= bigM * (1 - x[k, "o"+str(k), t]), name="constr10")
-    
+
+
+    bigM = 999
+    for (i,j) in arcs:
+        for k in pd.RangeIndex(nVehicles):
+            for r in pd.RangeIndex(nRequests):
+                if i == "o"+str(k) and j == "p"+str(r):
+                    model.addConstr(c[i][j] - a[j] <= bigM * (1 - x[k,i,j]), name="constr9")
+            if i == "o"+str(k) and j in nodeList["ts"].values:
+                model.addConstr(c[i][j] - ats[k,j] <= bigM * (1 - x[k,i,j]), name="constr10")
+
     for (i,j) in arcs:
         if i in np.concatenate((nodeList['ro'].values, nodeList['rd'].values)):  
             if j in np.concatenate((nodeList['ro'].values, nodeList['rd'].values)):
                 for k in pd.RangeIndex(nVehicles):
-                    bigM = max(0, df.loc[df['node'] == i, 'b'].values[0]) + c[i][j] - int(df.loc[df['node'] == j, 'a'].values[0])
                     model.addConstr(a[i] + c[i][j] - a[j] <= bigM * (1 - x[k, i, j]), name="constr11")
                     
             if j in nodeList["ts"].values:
                 for k in pd.RangeIndex(nVehicles):
-                    bigM = max(0, df.loc[df['node'] == i, 'b'].values[0]) + c[i][j] - int(df.loc[df['node'] == j, 'a'].values[0])
-                    model.addConstr(a[i] + c[i][j] - a[j] <= bigM * (1 - x[k, i, j]), name="constr12")
+                    model.addConstr(a[i] + c[i][j] - ats[k,j] <= bigM * (1 - x[k, i, j]), name="constr12")
                     
-            if j in nodeList["tf"].values:
+        if j in np.concatenate((nodeList['ro'].values, nodeList['rd'].values)):              
+            if i in nodeList["tf"].values:
                 for k in pd.RangeIndex(nVehicles):
-                    bigM = max(0, df.loc[df['node'] == j, 'b'].values[0]) + c[j][i] - int(df.loc[df['node'] == i, 'a'].values[0])
-                    model.addConstr(a[j] + c[j][i] - a[i] <= bigM * (1 - x[k, j, i]), name="constr14")
+                    model.addConstr(atf[k,i] + c[i][j] - a[j] <= bigM * (1 - x[k, i, j]), name="constr14")
         
         if i in nodeList["ts"].values and j in nodeList["tf"].values:
-            if i.replace("ts",'') == j.replace("tf",''):
-                bigM = max(0, df.loc[df['node'] == i, 'b'].values[0]) + c[i][j] - int(df.loc[df['node'] == j, 'a'].values[0])
-                model.addConstr(a[i] + c[i][j] - a[j] <= bigM * (1 - x[k, i, j]), name="constr13")
+            if i.replace('ts','') == j.replace('tf',''):
+                for k in pd.RangeIndex(nVehicles):
+                    model.addConstr(ats[k,i] + c[i][j] - atf[k,j] <= bigM * (1 - x[k, i, j]), name="constr13")
                 
         if i in nodeList["tf"].values and j in nodeList["ts"].values:
             if i.replace("tf",'') != j.replace("ts",''):
-                bigM = max(0, df.loc[df['node'] == i, 'b'].values[0]) + c[i][j] - int(df.loc[df['node'] == j, 'a'].values[0])
-                model.addConstr(a[i] + c[i][j] - a[j] <= bigM * (1 - x[k, i, j]), name="constr15")
-            
-        for k in pd.RangeIndex(nVehicles):
-            for r in pd.RangeIndex(nRequests):
-                model.addConstr(z[k,r,"o"+str(k)] == z[k,r,"e"+str(k)], name ="constr16")
-        
-        for (i,j) in arcs:
-            if i in nodeList["ts"].values and j in nodeList["tf"].values and i.replace("tf",'') == j.replace("ts",''):
                 for k in pd.RangeIndex(nVehicles):
-                    for r in pd.RangeIndex(nRequests):
-                        if i.replace(str(r),'') != "p" and i.replace(str(r),'') != "d":
-                            model.addConstr(z[k,i,r] - z[k,r,j] <= 1 - x[k,i,j], name="constr17")
-                        
-        for k in pd.RangeIndex(nVehicles):
-            for r in pd.RangeIndex(nRequests):
-                for (j,i) in arcs:
-                    if j in nodeList["ro"].values:
-                        model.addConstr(z[k,r,i] - 1 <= 1 - x[k,j,i], name="constr18")
-                    if j in nodeList["rd"].values:
-                        model.addConstr(z[k,r,i] <= 1 - x[k,j,i], name="constr19")
-                        
+                    model.addConstr(atf[k,i] + c[i][j] - ats[k,j] <= bigM * (1 - x[k, i, j]), name="constr15")
+            
+    for k in pd.RangeIndex(nVehicles):
+        for r in pd.RangeIndex(nRequests):
+            model.addConstr(z[k,r,"o"+str(k)] == 0, name ="constr16")
+            model.addConstr(z[k,r,"e"+str(k)] == 0, name ="constr16")
+                
+    for (i,j) in arcs:
+        if not (i in nodeList["ts"].values and j in nodeList["tf"].values and i.replace("ts",'') == j.replace("tf",'')):
+            for k in pd.RangeIndex(nVehicles):
+                for r in pd.RangeIndex(nRequests):
+                    if "p" + str(r) != i and "d" + str(r) != i:
+                        model.addConstr(z[k,r,i] - z[k,r,j] <= 1 - x[k,i,j], name="constr17")
+                    
+    for k in pd.RangeIndex(nVehicles):
         for r in pd.RangeIndex(nRequests):
             for (i,j) in arcs:
-                if i in nodeList["ts"].values and j in nodeList["tf"].values and i.replace("ts",'') == j.replace("tf",''):
-                    model.addConstr(sum(z[k,r,i] for k in pd.RangeIndex(nVehicles)) == sum(z[k,r,j] for k in pd.RangeIndex(nVehicles)), name="constr20")
-         
-        
-        for k in pd.RangeIndex(nVehicles):
-            for j in nodeList["a"].values:
-                if j.replace(str(k),'') != "o" and j.replace(str(k),'') != "e":
-                    model.addConstr(sum(z[k,r,j] for r in pd.RangeIndex(nRequests)) <= sum(x[k,i,j] for i in nodeList["a"].values if (i,j) in arcs), name="constr21") 
-        
+                if i == "p" + str(r):
+                    model.addConstr(1 - z[k,r,j] <= 1 - x[k,i,j], name="constr18")
+                if i == "d" + str(r):
+                    model.addConstr(z[k,r,j] <= 1 - x[k,i,j], name="constr19")
+                    
+    for r in pd.RangeIndex(nRequests):
         for (i,j) in arcs:
-            if i in nodeList["ts"].values and j in nodeList["tf"].values and i.replace("tf",'') == j.replace("ts",''):
+            if i in nodeList["ts"].values and j in nodeList["tf"].values and i.replace("ts",'') == j.replace("tf",''):
+                model.addConstr(sum(z[k,r,i] for k in pd.RangeIndex(nVehicles)) == sum(z[k,r,j] for k in pd.RangeIndex(nVehicles)), name="constr20")
+        
+
+    for k in pd.RangeIndex(nVehicles):
+        for j in nodeList["a"].values:
+            if "o" + str(k) != j and "e" + str(k) != j:
+                model.addConstr(sum(z[k,r,j] for r in pd.RangeIndex(nRequests)) <= nRequests * sum(x[k,i,j] for i in nodeList["a"].values if (i,j) in arcs), name="constr21") 
+
+    for i in nodeList["ts"].values:
+        for j in nodeList["tf"].values:
+            if i.replace("ts",'') == j.replace("tf",''):
                 for k1 in pd.RangeIndex(nVehicles):
                     for k2 in pd.RangeIndex(nVehicles):
                         for r in pd.RangeIndex(nRequests):
-                            model.addConstr(ats[k1,i] - atf[k2,j] <= 2 - (z[k1,r,i] + z[k2,r,j]), name="constr22")
-        
-        for k in pd.RangeIndex(nVehicles):
-            for i in nodeList["a"].values:
-                model.addConstr(sum(q[r]*z[k,r,i] for r in pd.RangeIndex(nRequests)) <= u[k], name="constr23")
-                
+                            model.addConstr(ats[k1,i] - atf[k2,j] <= bigM * (2 - (z[k1,r,i] + z[k2,r,j])), name="constr22")
+
+    for k in pd.RangeIndex(nVehicles):
         for i in nodeList["a"].values:
-            model.addConstr(a[i] >= int(df.loc[df['node'] == i, 'a'].values[0]), name='constr24')
-            model.addConstr(a[i] <= int(df.loc[df['node'] == i, 'b'].values[0]), name='constr24')
+            model.addConstr(sum(q[r]*z[k,r,i] for r in pd.RangeIndex(nRequests)) <= u[k], name="constr23")
+            
+    for i in np.concatenate((nodeList['ro'].values, nodeList['rd'].values)):  
+        model.addConstr(a[i] >= int(df.loc[df['node'] == i, 'a'].values[0]), name='constr24')
+        model.addConstr(a[i] <= int(df.loc[df['node'] == i, 'b'].values[0]), name='constr24')											
         
                         
     model.update()
@@ -297,7 +297,26 @@ def cortesModel(filename):
                 plt.plot([x1, x2], [y1, y2], 'gray', linestyle="--")
         plt.show()
     
+    def plotArcs(arcs):
+        fig, axes = plt.subplots(figsize=(10, 10))
+        
+        plt.scatter(df.loc[df['node'].str.contains('p'),'x'].values, df.loc[df['node'].str.contains('p'),'y'].values, s=50, facecolor='red', marker='o')
+        plt.scatter(df.loc[df['node'].str.contains('d'),'x'].values, df.loc[df['node'].str.contains('d'),'y'].values, s=50, facecolor='green', marker='o')
+        plt.scatter(df.loc[df['node'].str.contains('o'),'x'].values, df.loc[df['node'].str.contains('o'),'y'].values, s=50, facecolor='red', marker='s')
+        plt.scatter(df.loc[df['node'].str.contains('e'),'x'].values, df.loc[df['node'].str.contains('e'),'y'].values, s=50, facecolor='green', marker='s')
+        plt.scatter(df.loc[df['node'].str.contains('ts'),'x'].values, df.loc[df['node'].str.contains('ts'),'y'].values, s=50, facecolor='blue', marker='D')
+        
+        for (i,j) in arcs:
+            x1 = df.loc[df['node'] == i, 'x'].values
+            y1 = df.loc[df['node'] == i, 'y'].values
+            x2 = df.loc[df['node'] == j, 'x'].values
+            y2 = df.loc[df['node'] == j, 'y'].values
+            plt.plot([x1, x2], [y1, y2], 'gray', linestyle="--")
+            
+        plt.show()
+    
     plotLocation(df)
+    # plotArcs(arcs)
     infos = [filename, model.getObjective().getValue(), model.Runtime]
     return infos
 

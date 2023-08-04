@@ -9,7 +9,7 @@ import csv
 import gurobipy as gp
 from gurobipy import GRB
 
-# filename = "./PDPTWT/3R4K4T/3R-4K-4T-180L-7.txt"
+filename = "./PDPTWT/3R4K4T/3R-4K-4T-180L-7.txt"
 
 # Read the meta-data of problem (number of requests, number of vehicles, number of transport stations, capability of vehicles)
 def readMetaData(filename):
@@ -272,6 +272,8 @@ def lyuModel(filename):
                 plt.plot([x1, x2], [y1, y2], 'gray', linestyle="--")
         plt.show()
     
-    #plotLocation(df)
+    plotLocation(df)
     infos = [filename, model.getObjective().getValue(), model.Runtime]
     return infos
+
+lyuModel(filename)
