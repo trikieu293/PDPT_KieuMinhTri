@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import math
 import os
 import csv 
+import time
 
 import gurobipy as gp
 from gurobipy import GRB
@@ -85,7 +86,19 @@ def getNodeList(df):
     transferNodes = df.loc[df['node'].str.contains('t'),'node']
     return {"a":allNodes, "ro":rOrigins, "rd":rDestinations, "vo":vOrigins, "vd":vDestinations, "t":transferNodes}
 
-
+# Callback gap vs time
+def data_cb(model, where):
+    if where == gp.GRB.Callback.MIP:
+        cur_obj = model.cbGet(gp.GRB.Callback.MIP_OBJBST)
+        cur_bd = model.cbGet(gp.GRB.Callback.MIP_OBJBND)
+        gap = (abs(cur_bd - cur_obj)/abs(cur_obj))*100
+        
+        # Change in obj value or bound?
+        if model._obj != cur_obj or model._bd != cur_bd:
+            model._obj = cur_obj
+            model._bd = cur_bd
+            model._gap = gap
+            model._data.append([time.time() - model._start, cur_obj, cur_bd, gap])
 
 # Model
 def lyuModel(filename):
@@ -243,14 +256,42 @@ def lyuModel(filename):
                 if i not in [node for node in np.concatenate((nodeList['vo'].values, nodeList['vd'].values)) if (('o'+str(+ k) == node) or ('e' + str(k) == node))]:
                     # the request flows should not include the origin depots or destination depots
                     model.addConstr(sum(y[k, r, i, j] for j in nodeList['a'].values if i != j) == 0, name='constr47')                    
-
+    
+    # Data for callback
+    model._obj = None
+    model._bd = None
+    model._gap = None
+    model._data = []
+    model._start = time.time()
+    
     model.update()
-    model.optimize()
+    model.optimize(callback=data_cb)
     # model.computeIIS()
     # model.write("model.ilp")
     
+    def plotGap(data):
+        dfResult = pd.DataFrame(data, columns=['time', 'cur_obj','cur_bd','gap']).iloc[1:]
+        
+        fig, axes = plt.subplots()
+        
+        axes.set_xlabel('time')
+        axes.set_ylabel('value')
+        axes.set_xlim(dfResult['time'].values.min(), dfResult['time'].values.max())
+        axes.set_ylim(0, dfResult['cur_obj'].values.max() * 1.1)
+        line1, = axes.plot(dfResult['time'].values, dfResult['cur_obj'].values, color = 'navy', label='Current ObjValue')    
+        line2, = axes.plot(dfResult['time'].values, dfResult['cur_bd'].values, color = 'blue', label='Current DB')    
+        plt.fill_between(dfResult['time'].values, dfResult['cur_obj'].values, dfResult['cur_bd'].values, lw=0, color='lightsteelblue')
+        
+        axes2 = axes.twinx()
+        axes2.set_ylabel('%gap')
+        axes2.set_ylim(0, 100)
+        line3, = axes2.plot(dfResult['time'].values, dfResult['gap'].values, color = 'red', label='Current Gap')
+        axes.legend(handles=[line1, line2, line3], bbox_to_anchor=(0.5, 1.1), frameon=False, loc='upper center', ncol=3)
+        
+        plt.show()
+
     def plotLocation(df):
-        fig, axes = plt.subplots(figsize=(10, 10))
+        fig, axes = plt.subplots()
         
         plt.scatter(df.loc[df['node'].str.contains('p'),'x'].values, df.loc[df['node'].str.contains('p'),'y'].values, s=50, facecolor='red', marker='o')
         plt.scatter(df.loc[df['node'].str.contains('d'),'x'].values, df.loc[df['node'].str.contains('d'),'y'].values, s=50, facecolor='green', marker='o')
@@ -260,9 +301,9 @@ def lyuModel(filename):
         
         for xi, yi, text in zip(df['x'].values, df['y'].values, df['node'].values):
             plt.annotate(text, xy=(xi, yi), xycoords='data', xytext=(5, 5), textcoords='offset points')
+            
         xResult = pd.DataFrame(x.keys(), columns=["k","i","j"])
         xResult["value"]=model.getAttr("X", x).values()
-        
         for index, row in xResult.iterrows():
             if row["value"] == 1:
                 x1 = df.loc[df['node'] == row["i"], 'x'].values
@@ -271,8 +312,9 @@ def lyuModel(filename):
                 y2 = df.loc[df['node'] == row["j"], 'y'].values
                 plt.plot([x1, x2], [y1, y2], 'gray', linestyle="--")
         plt.show()
-    
-    plotLocation(df)
+        
+    # plotGap(model._data)
+    # plotLocation(df)
     infos = [filename, model.getObjective().getValue(), model.Runtime]
     return infos
 
