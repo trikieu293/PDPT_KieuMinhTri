@@ -98,7 +98,7 @@ def data_cb(model, where):
             model._data.append([time.time() - model._start, cur_obj, cur_bd, gap])
 
 # Model, Parameters, Variables and Objective Function
-def cortesModel(filename):
+def raisModel(filename):
     model = gp.Model()
     metaData = readMetaData(filename)
     df = readDataframe(filename)
@@ -290,7 +290,7 @@ def cortesModel(filename):
     infos = [filename, model.getObjective().getValue(), model.Runtime]
     return infos
 
-cortesModel(filename)
+raisModel(filename)
 
 
 
