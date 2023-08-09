@@ -324,7 +324,8 @@ def newModel(filename):
     model._start = time.time()
     
     model.update()
-    model.optimize(callback=data_cb)
+    # model.optimize(callback=data_cb)
+    model.optimize()
     # model.computeIIS()
     # model.write("model.ilp")
     

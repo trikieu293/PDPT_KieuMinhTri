@@ -7,7 +7,7 @@ import time
 import gurobipy as gp
 from gurobipy import GRB
 
-filename = "./PDPTWT/3R4K4T/3R-4K-4T-180L-7.txt"
+filename = "./PDPTWT/3R-4K-4T-180L-0.txt"
 
 # Read the meta-data of problem (number of requests, number of vehicles, number of transport stations, capability of vehicles)
 def readMetaData(filename):
@@ -22,9 +22,9 @@ def readDataframe(filename):
         if "t" in row['node']:
             copy = row
             copy['node'] = copy['node'].replace('t', 'ts')
-            df = df.append(copy, ignore_index = True)
+            df = df._append(copy, ignore_index = True)
             copy['node'] = copy['node'].replace('ts', 'tf')
-            df = df.append(copy, ignore_index = True)
+            df = df._append(copy, ignore_index = True)
     for index, row in df.iterrows():
         if "t" in row['node'] and "ts" not in row['node'] and "tf" not in row['node']:
             df = df.drop(index)
@@ -102,7 +102,7 @@ def data_cb(model, where):
             model._obj = cur_obj
             model._bd = cur_bd
             model._gap = gap
-            model._data.append([time.time() - model._start, cur_obj, cur_bd, gap])
+            model._data._append([time.time() - model._start, cur_obj, cur_bd, gap])
 
 # Model
 def cortesModel(filename):
@@ -289,9 +289,11 @@ def cortesModel(filename):
     model._gap = None
     model._data = []
     model._start = time.time()
-    
+
+    model.Params.TimeLimit = 60*60
     model.update()
-    model.optimize(callback=data_cb)
+    # model.optimize(callback=data_cb)
+    model.optimize()
     # model.computeIIS()
     # model.write("model.ilp")
     
@@ -365,4 +367,4 @@ def cortesModel(filename):
     return infos
 
 
-cortesModel(filename)
+# cortesModel(filename)

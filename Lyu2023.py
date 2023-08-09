@@ -10,7 +10,7 @@ import time
 import gurobipy as gp
 from gurobipy import GRB
 
-filename = "./PDPTWT/3R4K4T/3R-4K-4T-180L-7.txt"
+filename = "./PDPTWT/3R-4K-4T-180L-0.txt"
 
 # Read the meta-data of problem (number of requests, number of vehicles, number of transport stations, capability of vehicles)
 def readMetaData(filename):
@@ -265,7 +265,8 @@ def lyuModel(filename):
     model._start = time.time()
     
     model.update()
-    model.optimize(callback=data_cb)
+    # model.optimize(callback=data_cb)
+    model.optimize()
     # model.computeIIS()
     # model.write("model.ilp")
     
