@@ -12,7 +12,7 @@ from gurobipy import GRB
 
 def main():
     
-    mainFolderPath = './PDPT/'
+    mainFolderPath = './PDPTWT/'
     folder = os.fsencode(mainFolderPath)
     filenames = []
     for file in os.listdir(folder):
@@ -23,10 +23,11 @@ def main():
     results = []
     for file in filenames:
         print(file)
-        results.append(ct.cortesModel(file) + rs.raisModel(file))
+        # results.append(ct.cortesModel(file) + rs.raisModel(file))
+        results.append(rs.raisModel(file))
         
-    csvIndex = ['Instace name', 'Cortes\'s Obj.Value', 'Cortes\'s t(s)', 'Rais\'s Obj.Value', 'Rais\'s t(s)']
+    csvIndex = ['Instace name', 'Rais\'s Obj.Value', 'Rais\'s t(s)']
     resultDf = pd.DataFrame(results, columns = csvIndex)
-    resultDf.to_csv("result_Cortes_Rais_PDPT.csv", encoding='utf-8')
+    resultDf.to_csv("result_Rais_PDPTWT.csv", encoding='utf-8')
 
 main()

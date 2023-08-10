@@ -235,7 +235,7 @@ def raisModel(filename):
     model._gap = None
     model._data = []
     model._start = time.time()
-    model.Params.TimeLimit = 60*60
+    model.Params.TimeLimit = 6*60*60
     model.update()
     # model.optimize(callback=data_cb)
     model.optimize()
@@ -288,7 +288,16 @@ def raisModel(filename):
         
     # plotGap(model._data)
     # plotLocation(df)
-    infos = [filename, model.getObjective().getValue(), model.Runtime]
+    if model.Status == GRB.OPTIMA:
+        infos = [filename, model.getObjective().getValue(), model.Runtime]
+    elif model.Status == GRB.TIME_LIMIT:
+        if model.SolCount == 0:
+            infos = [filename, "time_limit", model.Runtime]    
+        else:
+            infos = [filename, model.ObjVal, model.Runtime]    
+    else:
+        infos = [filename, "infisible", model.Runtime]  
+        
     return infos
 
 # raisModel(filename)
