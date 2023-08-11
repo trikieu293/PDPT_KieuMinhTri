@@ -289,7 +289,7 @@ def raisModel(filename):
         
     # plotGap(model._data)
     # plotLocation(df)
-    if model.Status == GRB.OPTIMA:
+    if model.Status == GRB.OPTIMAL:
         infos = [filename, model.getObjective().getValue(), model.Runtime]
     elif model.Status == GRB.TIME_LIMIT:
         if model.SolCount == 0:
