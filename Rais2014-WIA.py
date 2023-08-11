@@ -8,7 +8,7 @@ import time
 import gurobipy as gp
 from gurobipy import GRB
 
-# filename = "./PDPT/PDPT-R5-K2-T1-Q100-0.txt"
+filename = "./PDPT/PDPT-R5-K2-T1-Q100-0.txt"
 
 # Read the meta-data of problem (number of requests, number of vehicles, number of transport stations, capability of vehicles)
 def readMetaData(filename):
@@ -104,6 +104,32 @@ def raisModel(filename):
     df = readDataframe(filename)
     nodeList = getNodeList(df)
 
+    arcs = []
+    for i in nodeList['vo'].values:
+        for j in nodeList['ro'].values:
+            arcs.append((i,j))
+        for j in nodeList['t'].values:
+            arcs.append((i,j))
+        for j in nodeList['vd'].values:
+            arcs.append((i, i.replace("o", "e")))
+
+    for i in nodeList['ro'].values:
+        for j in np.concatenate((nodeList['ro'].values, nodeList['rd'].values, nodeList['t'].values)):
+            if i != j:
+                arcs.append((i,j))
+
+    for i in nodeList['rd'].values:
+        for j in np.concatenate((nodeList['ro'].values, nodeList['rd'].values, nodeList['vd'].values, nodeList['t'].values)):
+            if not (i == j or (j in nodeList['ro'].values and i == j.replace("p","d"))):
+                arcs.append((i,j))
+
+    for i in nodeList['t'].values:
+        for j in np.concatenate((nodeList['ro'].values, nodeList['rd'].values, nodeList['vd'].values, nodeList['t'].values)):
+            if  i != j:
+                arcs.append((i,j))
+
+    arcs = list(dict.fromkeys(arcs))
+
     # Testing Symmetries Breaking Constraints
     # df.loc[df['node'].str.contains('o'), 'x'] = 50
     # df.loc[df['node'].str.contains('o'), 'y'] = 50
@@ -123,8 +149,8 @@ def raisModel(filename):
 
     print(df)
 
-    xIndex = [(k, i, j) for k in pd.RangeIndex(nVehicles) for i in nodeList['a'].values for j in nodeList['a'].values if i != j]
-    yIndex = [(k, r, i, j) for k in pd.RangeIndex(nVehicles) for r in pd.RangeIndex(nRequests) for i in nodeList['a'].values for j in nodeList['a'].values if i != j]
+    xIndex = [(k, i, j) for k in pd.RangeIndex(nVehicles) for (i,j) in arcs]
+    yIndex = [(k, r, i, j) for k in pd.RangeIndex(nVehicles) for r in pd.RangeIndex(nRequests) for (i,j) in arcs]
     sIndex = [(k1, k2, t, r) for k1 in pd.RangeIndex(nVehicles) for k2 in pd.RangeIndex(nVehicles) for t in nodeList['t'].values for r in pd.RangeIndex(nRequests) if k1 != k2]
     aIndex = [(k, i) for k in pd.RangeIndex(nVehicles) for i in nodeList['a'].values]
     bIndex = [(k, i) for k in pd.RangeIndex(nVehicles) for i in nodeList['a'].values]
@@ -135,7 +161,7 @@ def raisModel(filename):
     a = model.addVars(aIndex, vtype=GRB.INTEGER, name='a')
     b = model.addVars(bIndex, vtype=GRB.INTEGER, name='b')
 
-    model.setObjective(sum((c[i][j] * x[k, i, j]) for i in nodeList['a'].values for j in nodeList['a'].values for k in pd.RangeIndex(nVehicles) if i != j), GRB.MINIMIZE)
+    model.setObjective(sum((c[i][j] * x[k, i, j]) for (i, j) in arcs for k in pd.RangeIndex(nVehicles) if i != j), GRB.MINIMIZE)
     model.update()
 
 
@@ -143,13 +169,13 @@ def raisModel(filename):
     for k in pd.RangeIndex(nVehicles):
         for i in nodeList['vo'].values:
             if i.replace('o','') == str(k):
-                model.addConstr(sum(x[k, i, j] for j in nodeList['a'].values if j != i) == 1, name="constr1")
+                model.addConstr(sum(x[k, i, j] for j in nodeList['a'].values if (i,j) in arcs) == 1, name="constr1")
                 for l in nodeList['vd'].values:
                     if l.replace('e','') == str(k):
-                        model.addConstr(sum(x[k, i, j] for j in nodeList['a'].values if j != i) == sum(x[k, j, l] for j in nodeList['a'].values if j != l), name="constr2")
+                        model.addConstr(sum(x[k, i, j] for j in nodeList['a'].values if (i,j) in arcs) == sum(x[k, j, l] for j in nodeList['a'].values if (j,l) in arcs), name="constr2")
         for i in nodeList['a'].values:
             if not (i.replace('o','') == str(k) or i.replace('e','') == str(k)):
-                model.addConstr(sum(x[k, i, j] for j in nodeList['a'].values if i != j) == sum(x[k, j, i] for j in nodeList['a'].values if i != j), name="constr3")
+                model.addConstr(sum(x[k, i, j] for j in nodeList['a'].values if (i,j) in arcs) == sum(x[k, j, i] for j in nodeList['a'].values if (j,i) in arcs), name="constr3")
 
     # Constaints (4), (5), (6), (16Lyu) are used to maintain the request flow              
     for r in pd.RangeIndex(nRequests):
@@ -157,33 +183,31 @@ def raisModel(filename):
             if i in nodeList['ro'].values:
                 if 'p' + str(r) == i:
                     # only one vehicle can pickup the request at request's origin
-                    model.addConstr(sum(sum(y[k, r, i, j] for j in nodeList['a'].values if i != j) for k in pd.RangeIndex(nVehicles)) == 1, name="constr4")
+                    model.addConstr(sum(sum(y[k, r, i, j] for j in nodeList['a'].values if (i,j) in arcs) for k in pd.RangeIndex(nVehicles)) == 1, name="constr4")
                     
             if i in nodeList['rd'].values:
                 if 'd' + str(r) == i:
                     # only one vehicle can drop off the request at request's destination
-                    model.addConstr(sum(sum(y[k, r, j, i] for j in nodeList['a'].values if i != j) for k in pd.RangeIndex(nVehicles)) == 1, name="constr5")
+                    model.addConstr(sum(sum(y[k, r, j, i] for j in nodeList['a'].values if (j,i) in arcs) for k in pd.RangeIndex(nVehicles)) == 1, name="constr5")
                     
             if i in nodeList['t'].values:
                 # the total number of request go in and out at a specific transfer node must be equal
-                model.addConstr(sum(sum(y[k, r, i, j] for j in nodeList['a'].values if i != j) for k in pd.RangeIndex(nVehicles)) == sum(sum(y[k, r, j, i] for j in nodeList['a'].values if i != j) for k in pd.RangeIndex(nVehicles)), name="constr6")   
+                model.addConstr(sum(sum(y[k, r, i, j] for j in nodeList['a'].values if (i,j) in arcs) for k in pd.RangeIndex(nVehicles)) == sum(sum(y[k, r, j, i] for j in nodeList['a'].values if (j,i) in arcs) for k in pd.RangeIndex(nVehicles)), name="constr6")   
             
             #Lyu
             for k in pd.RangeIndex(nVehicles):
                 if i not in [node for node in nodeList['ro'].values if 'p' + str(r) == node] and i not in [node for node in nodeList['rd'].values if 'd' + str(r) == node] and i not in nodeList['t'].values:
                     # request must be delivered by a same vehicle when it go throught a node other than its origin or destination or a transfer node
-                    model.addConstr(sum(y[k, r, i, j] for j in nodeList['a'].values if i != j) == sum(y[k, r, j, i] for j in nodeList['a'].values if i != j), name="constr16")
+                    model.addConstr(sum(y[k, r, i, j] for j in nodeList['a'].values if (i,j) in arcs) == sum(y[k, r, j, i] for j in nodeList['a'].values if (j,i) in arcs), name="constr16")
 
-    for i in nodeList['a'].values:
-        for j in nodeList['a'].values:
-            for k in pd.RangeIndex(nVehicles):
-                if i != j:
-                    for r in pd.RangeIndex(nRequests):
-                        # synchronisation between vehicle flow and request flow
-                        model.addConstr(y[k, r, i, j] <= x[k, i, j], name="constr8")
-                        
-                    # capacity constraint    
-                    model.addConstr(sum((q[r]*y[k, r, i, j]) for r in pd.RangeIndex(nRequests)) <= u[k]*x[k, i, j], name="constr9")
+    for (i,j) in arcs:
+        for k in pd.RangeIndex(nVehicles):
+            for r in pd.RangeIndex(nRequests):
+                # synchronisation between vehicle flow and request flow
+                model.addConstr(y[k, r, i, j] <= x[k, i, j], name="constr8")
+                
+            # capacity constraint    
+            model.addConstr(sum((q[r]*y[k, r, i, j]) for r in pd.RangeIndex(nRequests)) <= u[k]*x[k, i, j], name="constr9")
     # # Revisited from (10)-(12) to eliminate the subtours for PDPT                
     # for i in nodeList['a'].values:
     #     for j in nodeList['a'].values:
@@ -197,12 +221,10 @@ def raisModel(filename):
                             
 
     # (49)-(51) ensure that the requests are picked up and delivered in the given time windows
-    for i in nodeList['a'].values:
+    for (i,j) in arcs:
         for k in pd.RangeIndex(nVehicles):
-            for j in nodeList['a'].values:
-                if i != j:
-                    M = max(0, df.loc[df['node'] == i, 'b'].values[0]) + c[i][j] - int(df.loc[df['node'] == j, 'a'].values[0])
-                    model.addConstr(b[k, i] + c[i][j] - a[k, j] <= M * (1 - x[k, i, j]), name='constr15')
+            M = max(0, df.loc[df['node'] == i, 'b'].values[0]) + c[i][j] - int(df.loc[df['node'] == j, 'a'].values[0])
+            model.addConstr(b[k, i] + c[i][j] - a[k, j] <= M * (1 - x[k, i, j]), name='constr15')
                     
             model.addConstr(a[k, i] <= b[k, i], name='constr16')   
             
@@ -223,7 +245,7 @@ def raisModel(filename):
                 for k2 in pd.RangeIndex(nVehicles):
                     if k1 != k2:
                         # maintain the synchronisation variables at transfer nodes
-                        model.addConstr(sum(y[k1, r, j, t] for j in nodeList['a'].values if j != t) + sum(y[k2, r, t, j] for j in nodeList['a'].values if j != t) <= (s[k1, k2, t, r] + 1), name='constr19')
+                        model.addConstr(sum(y[k1, r, j, t] for j in nodeList['a'].values if (j,t) in arcs) + sum(y[k2, r, t, j] for j in nodeList['a'].values if (t,j) in arcs) <= (s[k1, k2, t, r] + 1), name='constr19')
                         
                         # maintain the synchronisation time-window at transfer nodes
                         model.addConstr(a[k1, t] - b[k2, t] <= M * (1 - s[k1, k2, t, r]), name='constr20')
@@ -289,7 +311,7 @@ def raisModel(filename):
         
     # plotGap(model._data)
     # plotLocation(df)
-    if model.Status == GRB.OPTIMA:
+    if model.Status == GRB.OPTIMAL:
         infos = [filename, model.getObjective().getValue(), model.Runtime]
     elif model.Status == GRB.TIME_LIMIT:
         if model.SolCount == 0:

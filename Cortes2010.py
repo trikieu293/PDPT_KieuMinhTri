@@ -7,7 +7,7 @@ import time
 import gurobipy as gp
 from gurobipy import GRB
 
-filename = "./PDPTWT/3R-4K-4T-180L-0.txt"
+filename = "./PDPTWT/4R-4K-4T-180L-0.txt"
 
 # Read the meta-data of problem (number of requests, number of vehicles, number of transport stations, capability of vehicles)
 def readMetaData(filename):
@@ -102,7 +102,7 @@ def data_cb(model, where):
             model._obj = cur_obj
             model._bd = cur_bd
             model._gap = gap
-            model._data._append([time.time() - model._start, cur_obj, cur_bd, gap])
+            model._data.append([time.time() - model._start, cur_obj, cur_bd, gap])
 
 # Model
 def cortesModel(filename):
@@ -158,8 +158,6 @@ def cortesModel(filename):
     r = pd.RangeIndex(nRequests)
     u = pd.Series(index=k, data=np.full(nVehicles, vCapability))
     q = pd.Series(index = np.concatenate((nodeList['ro'].values, nodeList['rd'].values)), data=df.loc[0:nRequests*2-1,'load'].values, dtype=int)
-
-    # cost = {(i, j): c.loc[i, j].values[0] for i in c.index for j in c.columns}
 
     print(df)
     print(arcs)
@@ -292,14 +290,14 @@ def cortesModel(filename):
 
     model.Params.TimeLimit = 60*60
     model.update()
-    # model.optimize(callback=data_cb)
-    model.optimize()
+    model.optimize(callback=data_cb)
+    # model.optimize()
     # model.computeIIS()
     # model.write("model.ilp")
     
     def plotGap(data):
-        dfResult = pd.DataFrame(data, columns=['time', 'cur_obj','cur_bd','gap']).iloc[1:]
-        
+        dfResult = pd.DataFrame(data, columns=['time', 'cur_obj','cur_bd','gap'])
+        dfResult = dfResult.drop(dfResult[dfResult.cur_obj >= 100000000].index)
         fig, axes = plt.subplots()
         
         axes.set_xlabel('time')
@@ -360,11 +358,11 @@ def cortesModel(filename):
             
         plt.show()
         
-    # plotGap(model._data)
+    plotGap(model._data)
     # plotLocation(df)
     # plotArcs(arcs)
     infos = [filename, model.getObjective().getValue(), model.Runtime]
     return infos
 
 
-# cortesModel(filename)
+cortesModel(filename)

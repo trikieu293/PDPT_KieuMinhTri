@@ -331,8 +331,8 @@ def newModel(filename):
     # model.write("model.ilp")
     
     def plotGap(data):
-        dfResult = pd.DataFrame(data, columns=['time', 'cur_obj','cur_bd','gap']).iloc[1:]
-        
+        dfResult = pd.DataFrame(data, columns=['time', 'cur_obj','cur_bd','gap'])
+        dfResult = dfResult.drop(dfResult[dfResult.cur_obj >= 100000000].index)
         fig, axes = plt.subplots()
         
         axes.set_xlabel('time')
