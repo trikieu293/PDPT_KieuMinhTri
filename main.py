@@ -1,6 +1,7 @@
 import Lyu2023 as lyu
 import newmodel as nm
 import Cortes2010 as ct
+import Cortes2010_conditional as ctc
 import Rais2014 as rs
 import pandas as pd
 import numpy as np
@@ -24,10 +25,10 @@ def main():
     for file in filenames:
         print(file)
         # results.append(ct.cortesModel(file) + rs.raisModel(file))
-        results.append(rs.raisModel(file))
+        results.append(ctc.cortesModel(file))
         
-    csvIndex = ['Instace name', 'Rais\'s Obj.Value', 'Rais\'s t(s)']
+    csvIndex = ['Instace name', 'Cortes_c\'s Obj.Value', 'Cortes_c\'s t(s)']
     resultDf = pd.DataFrame(results, columns = csvIndex)
-    resultDf.to_csv("result_Rais_PDPTWT.csv", encoding='utf-8')
+    resultDf.to_csv("result_Cortes_C_PDPTWT.csv", encoding='utf-8')
 
 main()
