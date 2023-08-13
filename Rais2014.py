@@ -235,7 +235,7 @@ def raisModel(filename):
     model._gap = None
     model._data = []
     model._start = time.time()
-    model.Params.TimeLimit = 6*60*60
+    model.Params.TimeLimit = 60*60
     model.update()
     # model.optimize(callback=data_cb)
     model.optimize()

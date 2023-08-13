@@ -3,6 +3,7 @@ import newmodel as nm
 import Cortes2010 as ct
 import Cortes2010_conditional as ctc
 import Rais2014 as rs
+import Rais2014_WIA as rsi
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -25,10 +26,10 @@ def main():
     for file in filenames:
         print(file)
         # results.append(ct.cortesModel(file) + rs.raisModel(file))
-        results.append(ctc.cortesModel(file))
+        results.append(rsi.raisModel(file))
         
-    csvIndex = ['Instace name', 'Cortes_c\'s Obj.Value', 'Cortes_c\'s t(s)']
+    csvIndex = ['Instace name', 'Rais without infeasible arcs\'s Obj.Value', 'Rais without infeasible arcs\'s t(s)']
     resultDf = pd.DataFrame(results, columns = csvIndex)
-    resultDf.to_csv("result_Cortes_C_PDPTWT.csv", encoding='utf-8')
+    resultDf.to_csv("result_Rais_WIA_PDPTWT.csv", encoding='utf-8')
 
 main()
