@@ -26,10 +26,10 @@ def main():
     for file in filenames:
         print(file)
         # results.append(ct.cortesModel(file) + rs.raisModel(file))
-        results.append(ct.cortesModel(file))
+        results.append(rsi.raisModel(file))
         
-    csvIndex = ['Instace name', 'Cortes\'s Obj.Value', 'Cortes\'s t(s)']
+    csvIndex = ['Instace name', 'RaisWIA\'s Obj.Value', 'RaisWIA\'s t(s)']
     resultDf = pd.DataFrame(results, columns = csvIndex)
-    resultDf.to_csv("result_Cortes_PDPT.csv", encoding='utf-8')
+    resultDf.to_csv("result_Rais_WIA_PDPT.csv", encoding='utf-8')
 
 main()
