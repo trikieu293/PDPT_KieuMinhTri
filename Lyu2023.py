@@ -10,7 +10,7 @@ import time
 import gurobipy as gp
 from gurobipy import GRB
 
-filename = "./PDPTWT/3R-4K-4T-180L-0.txt"
+# filename = "./PDPTWT/3R-4K-4T-180L-0.txt"
 
 # Read the meta-data of problem (number of requests, number of vehicles, number of transport stations, capability of vehicles)
 def readMetaData(filename):
@@ -108,10 +108,10 @@ def lyuModel(filename):
     nodeList = getNodeList(df)
 
     # Testing Symmetries Breaking Constraints
-    # df.loc[df['node'].str.contains('o'), 'x'] = 50
-    # df.loc[df['node'].str.contains('o'), 'y'] = 50
-    # df.loc[df['node'].str.contains('e'), 'x'] = 50
-    # df.loc[df['node'].str.contains('e'), 'y'] = 50
+    df.loc[df['node'].str.contains('o'), 'x'] = 50
+    df.loc[df['node'].str.contains('o'), 'y'] = 50
+    df.loc[df['node'].str.contains('e'), 'x'] = 50
+    df.loc[df['node'].str.contains('e'), 'y'] = 50
 
     nRequests = int(metaData['nr'])
     nVehicles = int(metaData['nv'])
@@ -257,6 +257,10 @@ def lyuModel(filename):
                     # the request flows should not include the origin depots or destination depots
                     model.addConstr(sum(y[k, r, i, j] for j in nodeList['a'].values if i != j) == 0, name='constr47')                    
     
+    for r in pd.RangeIndex(nRequests):
+        # Symmetries Breaking Constraints form Cortes (2010)
+        model.addConstr(sum(sum(x[k, 'o' + str(r), j] for j in nodeList['a'].values if 'o' + str(r) != j) for k in pd.RangeIndex(nVehicles) if k > r) == 0, name='symmetries breaking constr')
+
     # Data for callback
     model._obj = None
     model._bd = None
@@ -321,4 +325,4 @@ def lyuModel(filename):
     infos = [filename, model.getObjective().getValue(), model.Runtime]
     return infos
 
-lyuModel(filename)
+# lyuModel(filename)

@@ -228,6 +228,10 @@ def raisModel(filename):
                         # maintain the synchronisation time-window at transfer nodes
                         model.addConstr(a[k1, t] - b[k2, t] <= M * (1 - s[k1, k2, t, r]), name='constr20')
                     
+    for r in pd.RangeIndex(nRequests):
+        # Symmetries Breaking Constraints form Cortes (2010)
+        model.addConstr(sum(sum(x[k, 'o' + str(r), j] for j in nodeList['a'].values if 'o' + str(r) != j) for k in pd.RangeIndex(nVehicles) if k > r) == 0, name='symmetries breaking constr')
+
 
     # Data for callback
     model._obj = None
