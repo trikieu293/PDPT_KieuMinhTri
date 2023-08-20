@@ -8,7 +8,8 @@ import time
 import gurobipy as gp
 from gurobipy import GRB
 
-# filename = "./PDPT/PDPT-R5-K2-T1-Q100-0.txt"
+# ./PDPTWT/4R-4K-4T-300L-2.txt
+# filename = "./PDPT/PDPT-R7-K3-T3-Q100-6.txt"
 
 # Read the meta-data of problem (number of requests, number of vehicles, number of transport stations, capability of vehicles)
 def readMetaData(filename):
@@ -105,10 +106,10 @@ def raisModel(filename):
     nodeList = getNodeList(df)
 
     # Testing Symmetries Breaking Constraints
-    # df.loc[df['node'].str.contains('o'), 'x'] = 50
-    # df.loc[df['node'].str.contains('o'), 'y'] = 50
-    # df.loc[df['node'].str.contains('e'), 'x'] = 50
-    # df.loc[df['node'].str.contains('e'), 'y'] = 50
+    df.loc[df['node'].str.contains('o'), 'x'] = 50
+    df.loc[df['node'].str.contains('o'), 'y'] = 50
+    df.loc[df['node'].str.contains('e'), 'x'] = 50
+    df.loc[df['node'].str.contains('e'), 'y'] = 50
 
     nRequests = int(metaData['nr'])
     nVehicles = int(metaData['nv'])
@@ -228,9 +229,9 @@ def raisModel(filename):
                         # maintain the synchronisation time-window at transfer nodes
                         model.addConstr(a[k1, t] - b[k2, t] <= M * (1 - s[k1, k2, t, r]), name='constr20')
                     
-    for r in pd.RangeIndex(nRequests):
-        # Symmetries Breaking Constraints form Cortes (2010)
-        model.addConstr(sum(sum(x[k, 'o' + str(r), j] for j in nodeList['a'].values if 'o' + str(r) != j) for k in pd.RangeIndex(nVehicles) if k > r) == 0, name='symmetries breaking constr')
+    # for r in pd.RangeIndex(nRequests):
+    #     # Symmetries Breaking Constraints form Cortes (2010)
+    #     model.addConstr(sum(sum(x[k, 'o' + str(r), j] for j in nodeList['a'].values if 'o' + str(r) != j) for k in pd.RangeIndex(nVehicles) if k > r) == 0, name='symmetries breaking constr')
 
 
     # Data for callback

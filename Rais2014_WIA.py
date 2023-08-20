@@ -8,7 +8,7 @@ import time
 import gurobipy as gp
 from gurobipy import GRB
 
-filename = "./PDPT/PDPT-R5-K2-T1-Q100-0.txt"
+filename = "./PDPT/PDPT-R7-K3-T3-Q100-6.txt"
 
 # Read the meta-data of problem (number of requests, number of vehicles, number of transport stations, capability of vehicles)
 def readMetaData(filename):
@@ -257,10 +257,10 @@ def raisModel(filename):
     model._gap = None
     model._data = []
     model._start = time.time()
-    model.Params.TimeLimit = 6*60*60
+    model.Params.TimeLimit = 60*60
     model.update()
-    # model.optimize(callback=data_cb)
-    model.optimize()
+    model.optimize(callback=data_cb)
+    # model.optimize()
     # model.computeIIS()
     # model.write("model.ilp")
 
@@ -309,7 +309,7 @@ def raisModel(filename):
                 plt.plot([x1, x2], [y1, y2], 'gray', linestyle="--")
         plt.show()
         
-    # plotGap(model._data)
+    plotGap(model._data)
     # plotLocation(df)
     if model.Status == GRB.OPTIMAL:
         infos = [filename, model.getObjective().getValue(), model.Runtime]
@@ -323,7 +323,7 @@ def raisModel(filename):
         
     return infos
 
-# raisModel(filename)
+raisModel(filename)
 
 
 

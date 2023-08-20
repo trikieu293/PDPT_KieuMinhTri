@@ -7,7 +7,7 @@ import time
 import gurobipy as gp
 from gurobipy import GRB
 
-filename = "./PDPTWT/4R-4K-4T-180L-0.txt"
+filename = "./PDPT/PDPT-R7-K3-T3-Q100-6.txt"
 
 # Read the meta-data of problem (number of requests, number of vehicles, number of transport stations, capability of vehicles)
 def readMetaData(filename):
@@ -143,10 +143,10 @@ def cortesModel(filename):
     arcs = list(dict.fromkeys(arcs))
 
     # Testing Symmetries Breaking Constraints
-    df.loc[df['node'].str.contains('o'), 'x'] = 50
-    df.loc[df['node'].str.contains('o'), 'y'] = 50
-    df.loc[df['node'].str.contains('e'), 'x'] = 50
-    df.loc[df['node'].str.contains('e'), 'y'] = 50
+    # df.loc[df['node'].str.contains('o'), 'x'] = 50
+    # df.loc[df['node'].str.contains('o'), 'y'] = 50
+    # df.loc[df['node'].str.contains('e'), 'x'] = 50
+    # df.loc[df['node'].str.contains('e'), 'y'] = 50
 
     nRequests = int(metaData['nr'])
     nVehicles = int(metaData['nv'])
@@ -361,7 +361,7 @@ def cortesModel(filename):
             
         plt.show()
         
-    # plotGap(model._data)
+    plotGap(model._data)
     # plotLocation(df)
     # plotArcs(arcs)
     if model.Status == GRB.OPTIMAL:
