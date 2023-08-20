@@ -26,7 +26,7 @@ def main():
     for file in filenames:
         print(file)
         # results.append(ct.cortesModel(file) + rs.raisModel(file))
-        results.append(ct.cortesModel(file))
+        results.append(rs.raisModel(file))
         
     csvIndex = ['Instace name', 'RaisnoSBC\'s Obj.Value', 'RaisnoSBC\'s t(s)']
     resultDf = pd.DataFrame(results, columns = csvIndex)
