@@ -280,9 +280,9 @@ def cortesModel(filename):
         model.addConstr(a[i] >= int(df.loc[df['node'] == i, 'a'].values[0]), name='constr24')
         model.addConstr(a[i] <= int(df.loc[df['node'] == i, 'b'].values[0]), name='constr24')											
         
-    for r in pd.RangeIndex(nRequests):
-        # Symmetries Breaking Constraints form Cortes (2010)
-        model.addConstr(sum(sum(x[k, 'o' + str(r), j] for j in nodeList['a'].values if ('o' + str(r), j) in arcs) for k in pd.RangeIndex(nVehicles) if k > r) == 0, name='symmetries breaking constr')
+    # for r in pd.RangeIndex(nRequests):
+    #     # Symmetries Breaking Constraints form Cortes (2010)
+    #     model.addConstr(sum(sum(x[k, 'o' + str(r), j] for j in nodeList['a'].values if ('o' + str(r), j) in arcs) for k in pd.RangeIndex(nVehicles) if k > r) == 0, name='symmetries breaking constr')
                     
     # Data for callback
     model._obj = None
