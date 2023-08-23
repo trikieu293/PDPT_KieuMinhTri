@@ -325,4 +325,4 @@ def lyuModel(filename):
     infos = [filename, model.getObjective().getValue(), model.Runtime]
     return infos
 
-lyuModel(filename)
+# lyuModel(filename)

@@ -104,7 +104,6 @@ def raisModel(filename):
     metaData = readMetaData(filename)
     df = readDataframe(filename)
     nodeList = getNodeList(df)
-
     # Testing Symmetries Breaking Constraints
     df.loc[df['node'].str.contains('o'), 'x'] = 50
     df.loc[df['node'].str.contains('o'), 'y'] = 50

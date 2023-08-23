@@ -143,10 +143,10 @@ def cortesModel(filename):
     arcs = list(dict.fromkeys(arcs))
 
     # Testing Symmetries Breaking Constraints
-    # df.loc[df['node'].str.contains('o'), 'x'] = 50
-    # df.loc[df['node'].str.contains('o'), 'y'] = 50
-    # df.loc[df['node'].str.contains('e'), 'x'] = 50
-    # df.loc[df['node'].str.contains('e'), 'y'] = 50
+    df.loc[df['node'].str.contains('o'), 'x'] = 50
+    df.loc[df['node'].str.contains('o'), 'y'] = 50
+    df.loc[df['node'].str.contains('e'), 'x'] = 50
+    df.loc[df['node'].str.contains('e'), 'y'] = 50
 
     nRequests = int(metaData['nr'])
     nVehicles = int(metaData['nv'])
@@ -280,9 +280,9 @@ def cortesModel(filename):
         model.addConstr(a[i] >= int(df.loc[df['node'] == i, 'a'].values[0]), name='constr24')
         model.addConstr(a[i] <= int(df.loc[df['node'] == i, 'b'].values[0]), name='constr24')											
         
-    # for r in pd.RangeIndex(nRequests):
-    #     # Symmetries Breaking Constraints form Cortes (2010)
-    #     model.addConstr(sum(sum(x[k, 'o' + str(r), j] for j in nodeList['a'].values if ('o' + str(r), j) in arcs) for k in pd.RangeIndex(nVehicles) if k > r) == 0, name='symmetries breaking constr')
+    for r in pd.RangeIndex(nRequests):
+        # Symmetries Breaking Constraints form Cortes (2010)
+        model.addConstr(sum(sum(x[k, 'o' + str(r), j] for j in nodeList['a'].values if ('o' + str(r), j) in arcs) for k in pd.RangeIndex(nVehicles) if k > r) == 0, name='symmetries breaking constr')
                     
     # Data for callback
     model._obj = None
@@ -290,11 +290,11 @@ def cortesModel(filename):
     model._gap = None
     model._data = []
     model._start = time.time()
-
+    model.Params.Symmetry = 0
     model.Params.TimeLimit = 60*60
     model.update()
-    model.optimize(callback=data_cb)
-    # model.optimize()
+    # model.optimize(callback=data_cb)
+    model.optimize()
     # model.computeIIS()
     # model.write("model.ilp")
     
@@ -361,7 +361,7 @@ def cortesModel(filename):
             
         plt.show()
         
-    plotGap(model._data)
+    # plotGap(model._data)
     # plotLocation(df)
     # plotArcs(arcs)
     if model.Status == GRB.OPTIMAL:
@@ -377,4 +377,4 @@ def cortesModel(filename):
     return infos
 
 
-cortesModel(filename)
+# cortesModel(filename)

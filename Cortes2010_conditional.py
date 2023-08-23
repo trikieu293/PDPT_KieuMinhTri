@@ -372,4 +372,4 @@ def cortesModel(filename):
     return infos
 
 
-cortesModel(filename)
+# cortesModel(filename)

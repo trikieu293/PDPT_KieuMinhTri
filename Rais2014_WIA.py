@@ -323,7 +323,7 @@ def raisModel(filename):
         
     return infos
 
-raisModel(filename)
+# raisModel(filename)
 
 
 
