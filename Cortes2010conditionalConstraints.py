@@ -356,9 +356,10 @@ def cortesModel(filename):
             
         plt.show()
         
-    # plotGap(model._data)
-    # plotLocation(df)
+    plotGap(model._data)
+    plotLocation(df)
     # plotArcs(arcs)
+    
     if model.Status == GRB.OPTIMAL:
         infos = [filename, model.getObjective().getValue(), model.Runtime]
     elif model.Status == GRB.TIME_LIMIT:
@@ -372,4 +373,4 @@ def cortesModel(filename):
     return infos
 
 
-# cortesModel(filename)
+cortesModel(filename)

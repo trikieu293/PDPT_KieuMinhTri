@@ -10,7 +10,7 @@ import time
 import gurobipy as gp
 from gurobipy import GRB
 
-# filename = "./PDPTWT/3R4K4T/3R-4K-4T-180L-7.txt"
+# filename = "./PDPT/PDPT-R7-K3-T3-Q100-6.txt"
 
 # Read the meta-data of problem (number of requests, number of vehicles, number of transport stations, capability of vehicles)
 def readMetaData(filename):

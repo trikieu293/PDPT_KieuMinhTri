@@ -1,4 +1,3 @@
-# %%
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -8,8 +7,7 @@ import time
 import gurobipy as gp
 from gurobipy import GRB
 
-# ./PDPTWT/4R-4K-4T-300L-2.txt
-# filename = "./PDPT/PDPT-R7-K3-T3-Q100-6.txt"
+filename = "./PDPT/PDPT-R7-K3-T3-Q100-6.txt"
 
 # Read the meta-data of problem (number of requests, number of vehicles, number of transport stations, capability of vehicles)
 def readMetaData(filename):
@@ -104,11 +102,12 @@ def raisModel(filename):
     metaData = readMetaData(filename)
     df = readDataframe(filename)
     nodeList = getNodeList(df)
+    
     # Testing Symmetries Breaking Constraints
-    df.loc[df['node'].str.contains('o'), 'x'] = 50
-    df.loc[df['node'].str.contains('o'), 'y'] = 50
-    df.loc[df['node'].str.contains('e'), 'x'] = 50
-    df.loc[df['node'].str.contains('e'), 'y'] = 50
+    # df.loc[df['node'].str.contains('o'), 'x'] = 50
+    # df.loc[df['node'].str.contains('o'), 'y'] = 50
+    # df.loc[df['node'].str.contains('e'), 'x'] = 50
+    # df.loc[df['node'].str.contains('e'), 'y'] = 50
 
     nRequests = int(metaData['nr'])
     nVehicles = int(metaData['nv'])
@@ -196,7 +195,7 @@ def raisModel(filename):
     #                         model.addConstr(z[k, i, j] + z[k, j, l] + z[k, l, i] <= 2, name="constr19")
                             
 
-    # (49)-(51) ensure that the requests are picked up and delivered in the given time windows
+    # ensure that the requests are picked up and delivered in the given time windows
     for i in nodeList['a'].values:
         for k in pd.RangeIndex(nVehicles):
             for j in nodeList['a'].values:
@@ -227,9 +226,9 @@ def raisModel(filename):
                         
                         # maintain the synchronisation time-window at transfer nodes
                         model.addConstr(a[k1, t] - b[k2, t] <= M * (1 - s[k1, k2, t, r]), name='constr20')
-                    
+        
+    # Symmetries Breaking Constraints form Cortes (2010)                
     # for r in pd.RangeIndex(nRequests):
-    #     # Symmetries Breaking Constraints form Cortes (2010)
     #     model.addConstr(sum(sum(x[k, 'o' + str(r), j] for j in nodeList['a'].values if 'o' + str(r) != j) for k in pd.RangeIndex(nVehicles) if k > r) == 0, name='symmetries breaking constr')
 
 
@@ -241,8 +240,8 @@ def raisModel(filename):
     model._start = time.time()
     model.Params.TimeLimit = 60*60
     model.update()
-    # model.optimize(callback=data_cb)
-    model.optimize()
+    model.optimize(callback=data_cb)
+    # model.optimize()
     # model.computeIIS()
     # model.write("model.ilp")
 
@@ -291,8 +290,9 @@ def raisModel(filename):
                 plt.plot([x1, x2], [y1, y2], 'gray', linestyle="--")
         plt.show()
         
-    # plotGap(model._data)
-    # plotLocation(df)
+    plotGap(model._data)
+    plotLocation(df)
+    
     if model.Status == GRB.OPTIMAL:
         infos = [filename, model.getObjective().getValue(), model.Runtime]
     elif model.Status == GRB.TIME_LIMIT:
@@ -305,7 +305,7 @@ def raisModel(filename):
         
     return infos
 
-# raisModel(filename)
+raisModel(filename)
 
 
 

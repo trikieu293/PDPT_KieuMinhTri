@@ -321,8 +321,18 @@ def lyuModel(filename):
         plt.show()
         
     plotGap(model._data)
-    # plotLocation(df)
-    infos = [filename, model.getObjective().getValue(), model.Runtime]
+    plotLocation(df)
+    
+    if model.Status == GRB.OPTIMAL:
+        infos = [filename, model.getObjective().getValue(), model.Runtime]
+    elif model.Status == GRB.TIME_LIMIT:
+        if model.SolCount == 0:
+            infos = [filename, "time_limit", model.Runtime]    
+        else:
+            infos = [filename, model.ObjVal, model.Runtime]    
+    else:
+        infos = [filename, "infisible", model.Runtime]  
+    
     return infos
 
-# lyuModel(filename)
+lyuModel(filename)
